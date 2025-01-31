@@ -138,9 +138,9 @@
 
   <!-- Player Input Section -->
   <div id="player-input">
-    <input type="text" id="room-id-input" placeholder="Enter Room ID">
-    <button id="create-room-button">Create Room</button>
-    <button id="join-room-button">Join Room</button>
+    <input type="text" id="player1" placeholder="Player 1 (X)" required>
+    <input type="text" id="player2" placeholder="Player 2 (O)" required>
+    <button id="start-button">Start Game</button>
   </div>
 
   <!-- Game Board -->
@@ -163,125 +163,98 @@
   <button id="reset-button" class="hidden">Reset Game</button>
 
   <script>
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      databaseURL: "https://tic-toc-toe-ea06f-default-rtdb.firebaseio.com/", // Your Firebase URL
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    // DOM Elements
+    const playerInput = document.getElementById('player-input');
+    const gameBoard = document.getElementById('game-board');
+    const statusText = document.getElementById('status');
+    const resetButton = document.getElementById('reset-button');
+    const startButton = document.getElementById('start-button');
+    const cells = document.querySelectorAll('.cell');
 
     // Game Variables
-    let roomId = null;
-    let playerId = null;
     let currentPlayer = 'X';
     let gameActive = true;
     let gameState = ['', '', '', '', '', '', '', '', ''];
+    let player1Name = '';
+    let player2Name = '';
 
-    // DOM Elements
-    const cells = document.querySelectorAll('.cell');
-    const statusText = document.getElementById('status');
-    const resetButton = document.getElementById('reset-button');
-    const createRoomButton = document.getElementById('create-room-button');
-    const joinRoomButton = document.getElementById('join-room-button');
-    const roomIdInput = document.getElementById('room-id-input');
+    // Winning Conditions
+    const winningConditions = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+      [0, 4, 8], [2, 4, 6]             // Diagonals
+    ];
 
-    // Create a New Room
-    createRoomButton.addEventListener('click', () => {
-      roomId = Math.random().toString(36).substring(7); // Generate a random room ID
-      playerId = 'player1';
-      database.ref(`rooms/${roomId}`).set({
-        gameState: ['', '', '', '', '', '', '', '', ''],
-        currentPlayer: 'X'
-      });
-      statusText.textContent = `Room created! Share this ID: ${roomId}`;
-      startGame();
+    // Start Game
+    startButton.addEventListener('click', () => {
+      player1Name = document.getElementById('player1').value || 'Player 1';
+      player2Name = document.getElementById('player2').value || 'Player 2';
+      playerInput.classList.add('hidden');
+      gameBoard.classList.remove('hidden');
+      resetButton.classList.remove('hidden');
+      statusText.textContent = `${player1Name}'s turn (X)`;
     });
 
-    // Join an Existing Room
-    joinRoomButton.addEventListener('click', () => {
-      roomId = roomIdInput.value;
-      if (!roomId) {
-        statusText.textContent = 'Please enter a room ID.';
-        return;
-      }
-      playerId = 'player2';
-      statusText.textContent = `Joining room ${roomId}...`;
-      startGame();
-    });
+    // Handle Cell Click
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
 
-    // Start the Game
-    function startGame() {
-      const gameRef = database.ref(`rooms/${roomId}`);
+    function handleCellClick(event) {
+      const clickedCell = event.target;
+      const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
 
-      // Listen for changes in the game state
-      gameRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          gameState = data.gameState;
-          currentPlayer = data.currentPlayer;
-          updateGameUI();
-          checkForWinner();
-        }
-      });
+      if (gameState[clickedCellIndex] !== '' || !gameActive) return;
 
-      // Handle cell clicks
-      cells.forEach((cell, index) => {
-        cell.addEventListener('click', () => {
-          if (gameState[index] === '' && gameActive && (playerId === 'player1' && currentPlayer === 'X' || playerId === 'player2' && currentPlayer === 'O')) {
-            gameState[index] = currentPlayer;
-            gameRef.update({ gameState, currentPlayer: currentPlayer === 'X' ? 'O' : 'X' });
-          }
-        });
-      });
+      gameState[clickedCellIndex] = currentPlayer;
+      clickedCell.textContent = currentPlayer;
+      clickedCell.classList.add(currentPlayer.toLowerCase());
+
+      checkForWinner();
     }
 
-    // Update the Game UI
-    function updateGameUI() {
-      cells.forEach((cell, index) => {
-        cell.textContent = gameState[index];
-      });
-      statusText.textContent = `It's ${currentPlayer}'s turn`;
-    }
-
-    // Check for a Winner
+    // Check for Winner or Draw
     function checkForWinner() {
-      const winningConditions = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-        [0, 4, 8], [2, 4, 6]             // Diagonals
-      ];
+      let roundWon = false;
 
       for (let condition of winningConditions) {
-        const [a, b, c] = condition;
-        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-          gameActive = false;
-          statusText.textContent = `Player ${gameState[a]} wins!`;
-          return;
+        const [a, b, c] = condition.map(index => gameState[index]);
+        if (a === '' || b === '' || c === '') continue;
+        if (a === b && b === c) {
+          roundWon = true;
+          break;
         }
+      }
+
+      if (roundWon) {
+        const winner = currentPlayer === 'X' ? player1Name : player2Name;
+        statusText.textContent = `${winner} wins! 🎉`;
+        gameActive = false;
+        return;
       }
 
       if (!gameState.includes('')) {
+        statusText.textContent = "It's a draw! 🤝";
         gameActive = false;
-        statusText.textContent = "It's a draw!";
+        return;
       }
+
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      const currentPlayerName = currentPlayer === 'X' ? player1Name : player2Name;
+      statusText.textContent = `${currentPlayerName}'s turn (${currentPlayer})`;
     }
 
-    // Reset the Game
-    resetButton.addEventListener('click', () => {
-      database.ref(`rooms/${roomId}`).set({
-        gameState: ['', '', '', '', '', '', '', '', ''],
-        currentPlayer: 'X'
-      });
+    // Reset Game
+    resetButton.addEventListener('click', resetGame);
+
+    function resetGame() {
+      gameState = ['', '', '', '', '', '', '', '', ''];
       gameActive = true;
-    });
+      currentPlayer = 'X';
+      statusText.textContent = `${player1Name}'s turn (X)`;
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('x', 'o');
+      });
+    }
   </script>
 </body>
 </html>
