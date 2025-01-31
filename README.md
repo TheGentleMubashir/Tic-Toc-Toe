@@ -1,14 +1,9 @@
-# Tic-Tac-Toe Multiplayer Game
+# Tic-Tac-Toe Game
 
-A real-time multiplayer Tic-Tac-Toe game implemented in HTML, CSS, JavaScript, and Firebase.
+A  Tic-Tac-Toe game implemented in HTML, CSS, and JavaScript.
 
 ## How to Play
-1. Open the game in two browsers or devices.
-2. In the first browser, click **Create Room** and share the room ID.
-3. In the second browser, enter the room ID and click **Join Room**.
-4. Play the game together in real-time!
-
-## Live Demo
+just Click The Link Below
 [Play the game here!](https://TheGentleMubashir/.github.io/Tic-Toc-Toe)
 
 ## License
