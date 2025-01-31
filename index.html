@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style>
+    /* General Styles */
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Player Input Section */
+    #player-input {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #player-input input {
+      padding: 10px;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      width: 200px;
+    }
+
+    #player-input button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #player-input button:hover {
+      background: #45a049;
+    }
+
+    /* Game Board */
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      margin: 20px auto;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    .cell:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    .cell.x {
+      color: #ff4d4d;
+    }
+
+    .cell.o {
+      color: #4dff4d;
+    }
+
+    /* Game Status */
+    #status {
+      font-size: 1.2rem;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    /* Reset Button */
+    #reset-button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: #ff4d4d;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #reset-button:hover {
+      background: #ff1a1a;
+    }
+
+    /* Animations */
+    @keyframes pop {
+      0% { transform: scale(0); }
+      100% { transform: scale(1); }
+    }
+
+    .cell.x, .cell.o {
+      animation: pop 0.3s ease;
+    }
+
+    /* Hide Player Input After Game Starts */
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+
+  <!-- Player Input Section -->
+  <div id="player-input">
+    <input type="text" id="room-id-input" placeholder="Enter Room ID">
+    <button id="create-room-button">Create Room</button>
+    <button id="join-room-button">Join Room</button>
+  </div>
+
+  <!-- Game Board -->
+  <div id="game-board" class="hidden">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+
+  <!-- Game Status -->
+  <p id="status"></p>
+
+  <!-- Reset Button -->
+  <button id="reset-button" class="hidden">Reset Game</button>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "https://tic-toc-toe-ea06f-default-rtdb.firebaseio.com/", // Your Firebase URL
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Game Variables
+    let roomId = null;
+    let playerId = null;
+    let currentPlayer = 'X';
+    let gameActive = true;
+    let gameState = ['', '', '', '', '', '', '', '', ''];
+
+    // DOM Elements
+    const cells = document.querySelectorAll('.cell');
+    const statusText = document.getElementById('status');
+    const resetButton = document.getElementById('reset-button');
+    const createRoomButton = document.getElementById('create-room-button');
+    const joinRoomButton = document.getElementById('join-room-button');
+    const roomIdInput = document.getElementById('room-id-input');
+
+    // Create a New Room
+    createRoomButton.addEventListener('click', () => {
+      roomId = Math.random().toString(36).substring(7); // Generate a random room ID
+      playerId = 'player1';
+      database.ref(`rooms/${roomId}`).set({
+        gameState: ['', '', '', '', '', '', '', '', ''],
+        currentPlayer: 'X'
+      });
+      statusText.textContent = `Room created! Share this ID: ${roomId}`;
+      startGame();
+    });
+
+    // Join an Existing Room
+    joinRoomButton.addEventListener('click', () => {
+      roomId = roomIdInput.value;
+      if (!roomId) {
+        statusText.textContent = 'Please enter a room ID.';
+        return;
+      }
+      playerId = 'player2';
+      statusText.textContent = `Joining room ${roomId}...`;
+      startGame();
+    });
+
+    // Start the Game
+    function startGame() {
+      const gameRef = database.ref(`rooms/${roomId}`);
+
+      // Listen for changes in the game state
+      gameRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          gameState = data.gameState;
+          currentPlayer = data.currentPlayer;
+          updateGameUI();
+          checkForWinner();
+        }
+      });
+
+      // Handle cell clicks
+      cells.forEach((cell, index) => {
+        cell.addEventListener('click', () => {
+          if (gameState[index] === '' && gameActive && (playerId === 'player1' && currentPlayer === 'X' || playerId === 'player2' && currentPlayer === 'O')) {
+            gameState[index] = currentPlayer;
+            gameRef.update({ gameState, currentPlayer: currentPlayer === 'X' ? 'O' : 'X' });
+          }
+        });
+      });
+    }
+
+    // Update the Game UI
+    function updateGameUI() {
+      cells.forEach((cell, index) => {
+        cell.textContent = gameState[index];
+      });
+      statusText.textContent = `It's ${currentPlayer}'s turn`;
+    }
+
+    // Check for a Winner
+    function checkForWinner() {
+      const winningConditions = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+        [0, 4, 8], [2, 4, 6]             // Diagonals
+      ];
+
+      for (let condition of winningConditions) {
+        const [a, b, c] = condition;
+        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+          gameActive = false;
+          statusText.textContent = `Player ${gameState[a]} wins!`;
+          return;
+        }
+      }
+
+      if (!gameState.includes('')) {
+        gameActive = false;
+        statusText.textContent = "It's a draw!";
+      }
+    }
+
+    // Reset the Game
+    resetButton.addEventListener('click', () => {
+      database.ref(`rooms/${roomId}`).set({
+        gameState: ['', '', '', '', '', '', '', '', ''],
+        currentPlayer: 'X'
+      });
+      gameActive = true;
+    });
+  </script>
+</body>
+</html>
